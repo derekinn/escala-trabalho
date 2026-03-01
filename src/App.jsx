@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Briefcase, Loader2, LogOut, Mail, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Briefcase, Loader2, LogOut, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-
-// --- CONFIGURAÇÃO DO FIREBASE ---
-// ⚠️ ATENÇÃO PARA O SEU PROJETO LOCAL (VITE):
-// Quando for rodar no seu computador, descomente o bloco abaixo e apague a configuração de teste!
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,12 +13,31 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 const appId = 'controle-trabalho';
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 export default function App() {
+  // --- MODO ESCURO ---
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Tenta recuperar a preferência salva no navegador da sua mãe
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    // Se não tiver salvo, verifica a preferência do sistema do celular/PC dela
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  // Atualiza a página com o tema escolhido
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   // --- ESTADOS DE AUTENTICAÇÃO ---
   const [user, setUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -61,7 +76,6 @@ export default function App() {
     }
 
     setIsDataLoading(true);
-    // Usando o UID do usuário para criar uma pasta segura só para ele
     const workDaysRef = collection(db, 'usuarios', user.uid, 'diasTrabalho');
 
     const unsubscribe = onSnapshot(workDaysRef, (snapshot) => {
@@ -96,22 +110,13 @@ export default function App() {
     } catch (error) {
       console.error("Erro de Autenticação:", error);
       switch (error.code) {
-        case 'auth/invalid-email':
-          setAuthError('E-mail inválido.');
-          break;
+        case 'auth/invalid-email': setAuthError('E-mail inválido.'); break;
         case 'auth/user-not-found':
         case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          setAuthError('E-mail ou senha incorretos.');
-          break;
-        case 'auth/email-already-in-use':
-          setAuthError('Este e-mail já está cadastrado.');
-          break;
-        case 'auth/weak-password':
-          setAuthError('A senha deve ter pelo menos 6 caracteres.');
-          break;
-        default:
-          setAuthError('Ocorreu um erro ao tentar entrar.');
+        case 'auth/invalid-credential': setAuthError('E-mail ou senha incorretos.'); break;
+        case 'auth/email-already-in-use': setAuthError('Este e-mail já está cadastrado.'); break;
+        case 'auth/weak-password': setAuthError('A senha deve ter pelo menos 6 caracteres.'); break;
+        default: setAuthError('Ocorreu um erro ao tentar entrar.');
       }
     } finally {
       setIsAuthLoading(false);
@@ -161,61 +166,71 @@ export default function App() {
   // --- RENDERIZAÇÃO DA TELA DE LOGIN ---
   if (isAuthLoading && !user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 size={48} className="animate-spin text-red-600" />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center transition-colors duration-300">
+        <Loader2 size={48} className="animate-spin text-red-600 dark:text-red-500" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
-          <div className="bg-red-600 text-white p-8 text-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 font-sans relative transition-colors duration-300">
+        
+        {/* BOTÃO MODO ESCURO - TELA DE LOGIN */}
+        <button 
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="absolute top-4 right-4 p-3 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10"
+          title="Alternar modo escuro"
+        >
+          {isDarkMode ? <Sun size={24} className="text-amber-400" /> : <Moon size={24} className="text-slate-600" />}
+        </button>
+
+        <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden transition-colors duration-300">
+          <div className="bg-red-600 dark:bg-red-700 text-white p-8 text-center transition-colors duration-300">
             <div className="bg-white/20 p-4 rounded-full inline-block mb-4">
               <CalendarIcon size={40} className="text-white" />
             </div>
-            <h1 className="text-3xl font-bold">Escala de Trabalho</h1>
+            <h1 className="text-3xl font-bold">Escala da Mamãe</h1>
             <p className="text-red-100 mt-2">Faça login para continuar</p>
           </div>
           
           <div className="p-8">
             <form onSubmit={handleAuthSubmit} className="space-y-5">
               {authError && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center font-medium border border-red-200">
+                <div className="bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-200 dark:border-red-800/50">
                   {authError}
                 </div>
               )}
               
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">E-mail</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail size={18} className="text-slate-400" />
+                    <Mail size={18} className="text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                    className="w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
                     placeholder="mae@email.com"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Senha</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock size={18} className="text-slate-400" />
+                    <Lock size={18} className="text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
+                    className="w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
                     placeholder="••••••••"
                   />
                 </div>
@@ -224,7 +239,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={isAuthLoading}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-colors flex justify-center items-center"
+                className="w-full bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl transition-colors flex justify-center items-center shadow-lg shadow-red-600/20 dark:shadow-none"
               >
                 {isAuthLoading ? <Loader2 size={20} className="animate-spin" /> : (isLoginMode ? 'Entrar' : 'Criar Conta')}
               </button>
@@ -237,7 +252,7 @@ export default function App() {
                   setIsLoginMode(!isLoginMode);
                   setAuthError('');
                 }}
-                className="text-sm text-slate-500 hover:text-red-600 transition-colors font-medium"
+                className="text-sm text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors font-medium"
               >
                 {isLoginMode ? 'Não tem uma conta? Crie aqui.' : 'Já tem uma conta? Faça login.'}
               </button>
@@ -273,13 +288,13 @@ export default function App() {
         className={`
           relative min-h-[80px] sm:min-h-[100px] p-2 border rounded-xl flex flex-col items-center justify-start transition-all duration-200 ease-in-out
           ${isWorkDay 
-            ? 'bg-red-500 border-red-600 text-white shadow-md transform scale-[1.02]' 
-            : 'bg-white border-slate-200 text-slate-700 hover:bg-red-50 hover:border-red-200'
+            ? 'bg-red-500 border-red-600 text-white shadow-md transform scale-[1.02] dark:bg-red-600 dark:border-red-500 dark:shadow-red-900/20' 
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-red-50 hover:border-red-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:border-slate-500'
           }
-          ${isToday && !isWorkDay ? 'ring-2 ring-blue-400' : ''}
+          ${isToday && !isWorkDay ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''}
         `}
       >
-        <span className={`text-lg font-bold ${isWorkDay ? 'text-white' : 'text-slate-800'}`}>
+        <span className={`text-lg font-bold ${isWorkDay ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>
           {day}
         </span>
         
@@ -296,10 +311,10 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
-      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
+      <div className="max-w-4xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden transition-colors duration-300">
         
-        <div className="bg-red-600 text-white p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-red-600 dark:bg-red-700 text-white p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 transition-colors duration-300">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <div className="bg-white/20 p-3 rounded-2xl hidden sm:block">
               <CalendarIcon size={32} className="text-white" />
@@ -309,7 +324,7 @@ export default function App() {
               <div className="flex items-center justify-between sm:justify-start gap-3 mt-1">
                 <p className="text-red-100 text-sm font-medium truncate max-w-[150px]">{user.email}</p>
                 {isDataLoading ? (
-                  <span className="flex items-center text-xs bg-red-500 px-2 py-0.5 rounded-full shadow-inner animate-pulse">
+                  <span className="flex items-center text-xs bg-red-500 dark:bg-red-600 px-2 py-0.5 rounded-full shadow-inner animate-pulse">
                     <Loader2 size={12} className="animate-spin mr-1" /> Sinc.
                   </span>
                 ) : (
@@ -322,9 +337,19 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="bg-white text-red-600 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl shadow-sm text-center">
-              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-red-400 mb-0.5">Neste mês</p>
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            
+            {/* BOTÃO MODO ESCURO - CABEÇALHO DO CALENDÁRIO */}
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="bg-red-700 hover:bg-red-800 dark:bg-slate-800 dark:hover:bg-slate-700 p-3 rounded-2xl transition-colors text-white shadow-sm"
+              title="Alternar modo escuro"
+            >
+              {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
+            </button>
+
+            <div className="bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl shadow-sm text-center transition-colors">
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-red-400 dark:text-red-500 mb-0.5">Neste mês</p>
               <p className="text-xl sm:text-2xl font-black leading-none">
                 {workDaysThisMonth} <span className="text-sm font-semibold text-red-500">{workDaysThisMonth === 1 ? 'dia' : 'dias'}</span>
               </p>
@@ -332,7 +357,7 @@ export default function App() {
             
             <button 
               onClick={handleLogout}
-              className="bg-red-700 hover:bg-red-800 p-3 rounded-2xl transition-colors text-white"
+              className="bg-red-700 hover:bg-red-800 dark:bg-slate-800 dark:hover:bg-slate-700 p-3 rounded-2xl transition-colors text-white shadow-sm"
               title="Sair da conta"
             >
               <LogOut size={20} />
@@ -344,16 +369,16 @@ export default function App() {
           <div className="flex justify-between items-center mb-6">
             <button 
               onClick={prevMonth}
-              className="p-3 hover:bg-slate-100 rounded-full transition-colors text-slate-600 hover:text-red-600"
+              className="p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"
             >
               <ChevronLeft size={24} />
             </button>
-            <h2 className="text-2xl font-bold text-slate-700 capitalize">
+            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 capitalize">
               {monthNames[currentMonth]} {currentYear}
             </h2>
             <button 
               onClick={nextMonth}
-              className="p-3 hover:bg-slate-100 rounded-full transition-colors text-slate-600 hover:text-red-600"
+              className="p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"
             >
               <ChevronRight size={24} />
             </button>
@@ -361,7 +386,7 @@ export default function App() {
 
           <div className="grid grid-cols-7 gap-2 mb-2">
             {weekDays.map(day => (
-              <div key={day} className="text-center font-bold text-slate-400 text-sm uppercase py-2">
+              <div key={day} className="text-center font-bold text-slate-400 dark:text-slate-500 text-sm uppercase py-2">
                 {day}
               </div>
             ))}
