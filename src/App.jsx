@@ -190,7 +190,7 @@ export default function App() {
             <div className="bg-white/20 p-4 rounded-full inline-block mb-4">
               <CalendarIcon size={40} className="text-white" />
             </div>
-            <h1 className="text-3xl font-bold">Escala da Mamãe</h1>
+            <h1 className="text-3xl font-bold">Escala de Trabalho</h1>
             <p className="text-red-100 mt-2">Faça login para continuar</p>
           </div>
           
