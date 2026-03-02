@@ -4,7 +4,26 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-const firebaseConfig = {
+// --- CONFIGURAÇÃO DE TESTE / LOCAL ---
+let firebaseConfig = {};
+let appId = 'controle-trabalho';
+
+try {
+  // Configuração para o ambiente de testes do site
+  if (typeof __firebase_config !== 'undefined') {
+    firebaseConfig = JSON.parse(__firebase_config);
+  }
+  if (typeof __app_id !== 'undefined') {
+    appId = __app_id;
+  }
+} catch (error) {
+  console.error("Erro ao carregar configuração:", error);
+}
+
+// ⚠️ PARA RODAR NO SEU COMPUTADOR (VITE):
+// Quando for enviar o código para a sua máquina, descomente o bloco abaixo.
+
+firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -12,7 +31,8 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
-const appId = 'controle-trabalho';
+
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -20,20 +40,20 @@ const db = getFirestore(app);
 export default function App() {
   // --- MODO ESCURO ---
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Tenta recuperar a preferência salva no navegador da sua mãe
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
-    // Se não tiver salvo, verifica a preferência do sistema do celular/PC dela
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Atualiza a página com o tema escolhido
   useEffect(() => {
+    const root = window.document.documentElement;
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      root.classList.remove('light');
       localStorage.setItem('theme', 'dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.classList.add('light');
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
@@ -59,6 +79,32 @@ export default function App() {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  // --- LÓGICA DE SWIPE (ARRASTAR NO CELULAR) ---
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50; // Distância mínima para considerar um "arraste"
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      nextMonth(); // Arrastou pra esquerda -> Próximo mês
+    }
+    if (isRightSwipe) {
+      prevMonth(); // Arrastou pra direita -> Mês anterior
+    }
+  };
 
   // --- EFEITOS (USEEFFECT) ---
   useEffect(() => {
@@ -175,8 +221,6 @@ export default function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 font-sans relative transition-colors duration-300">
-        
-        {/* BOTÃO MODO ESCURO - TELA DE LOGIN */}
         <button 
           onClick={() => setIsDarkMode(!isDarkMode)}
           className="absolute top-4 right-4 p-3 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10"
@@ -190,7 +234,7 @@ export default function App() {
             <div className="bg-white/20 p-4 rounded-full inline-block mb-4">
               <CalendarIcon size={40} className="text-white" />
             </div>
-            <h1 className="text-3xl font-bold">Escala de Trabalho</h1>
+            <h1 className="text-3xl font-bold">Escala da Mamãe</h1>
             <p className="text-red-100 mt-2">Faça login para continuar</p>
           </div>
           
@@ -314,6 +358,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
       <div className="max-w-4xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden transition-colors duration-300">
         
+        {/* CABEÇALHO */}
         <div className="bg-red-600 dark:bg-red-700 text-white p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 transition-colors duration-300">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <div className="bg-white/20 p-3 rounded-2xl hidden sm:block">
@@ -338,8 +383,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            
-            {/* BOTÃO MODO ESCURO - CABEÇALHO DO CALENDÁRIO */}
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="bg-red-700 hover:bg-red-800 dark:bg-slate-800 dark:hover:bg-slate-700 p-3 rounded-2xl transition-colors text-white shadow-sm"
@@ -365,38 +408,55 @@ export default function App() {
           </div>
         </div>
 
-        <div className="p-6 sm:p-8">
-          <div className="flex justify-between items-center mb-6">
+        {/* ÁREA DO CALENDÁRIO COM SUPORTE A SWIPE */}
+        <div 
+          className="p-4 sm:p-8 select-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* NAVEGAÇÃO DOS MESES MELHORADA */}
+          <div className="flex justify-between items-center mb-6 bg-slate-100 dark:bg-slate-800/50 p-2 rounded-2xl">
             <button 
               onClick={prevMonth}
-              className="p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 bg-white dark:bg-slate-700 hover:bg-red-50 dark:hover:bg-slate-600 rounded-xl transition-all shadow-sm text-slate-700 dark:text-slate-200 active:scale-95"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={20} />
+              <span className="hidden sm:block font-bold">Anterior</span>
             </button>
-            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 capitalize">
-              {monthNames[currentMonth]} {currentYear}
+            
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-700 dark:text-slate-200 capitalize text-center flex-1">
+              {monthNames[currentMonth]} <span className="text-red-600 dark:text-red-400">{currentYear}</span>
             </h2>
+            
             <button 
               onClick={nextMonth}
-              className="p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 bg-white dark:bg-slate-700 hover:bg-red-50 dark:hover:bg-slate-600 rounded-xl transition-all shadow-sm text-slate-700 dark:text-slate-200 active:scale-95"
             >
-              <ChevronRight size={24} />
+              <span className="hidden sm:block font-bold">Próximo</span>
+              <ChevronRight size={20} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
             {weekDays.map(day => (
-              <div key={day} className="text-center font-bold text-slate-400 dark:text-slate-500 text-sm uppercase py-2">
+              <div key={day} className="text-center font-bold text-slate-400 dark:text-slate-500 text-xs sm:text-sm uppercase py-2">
                 {day}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-2 sm:gap-3">
+          <div className="grid grid-cols-7 gap-1 sm:gap-3">
             {blanks}
             {days}
           </div>
         </div>
+        
+        {/* Dica para mobile */}
+        <div className="bg-slate-50 dark:bg-slate-800/80 p-3 text-center text-xs text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-700 sm:hidden">
+          Arraste para os lados para mudar de mês
+        </div>
+
       </div>
     </div>
   );
